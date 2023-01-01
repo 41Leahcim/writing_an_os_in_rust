@@ -1,11 +1,13 @@
 #![no_std]
 #![cfg_attr(test, no_main)]
-#![feature(custom_test_frameworks)]
+#![feature(custom_test_frameworks, abi_x86_interrupt)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main="test_main"]
 
+#[macro_use]
 pub mod vga_buffer;
 pub mod serial;
+pub mod interrupts;
 
 use core::panic::PanicInfo;
 
@@ -87,9 +89,14 @@ fn trivial_assertion(){
     assert_eq!(1, 1);
 }
 
+pub fn init(){
+    interrupts::init_idt();
+}
+
 #[cfg(test)]
 #[no_mangle]
 pub extern "C" fn _start() -> !{
+    init();
     test_main();
     loop{}
 }
