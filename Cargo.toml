@@ -8,3 +8,6 @@ authors = ["Michael Scholten <michael-scholten@hotmail.nl>"]
 
 [dependencies]
 bootloader = "0.9"
+volatile = "0.2"
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
+spin = "0.9"
