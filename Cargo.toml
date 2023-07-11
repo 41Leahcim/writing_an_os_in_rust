@@ -20,7 +20,7 @@ harness = false
 
 [dependencies]
 bootloader = "0.9"
-volatile = "0.2"
+volatile = "0.3"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 spin = "0.9"
 x86_64 = "0.14"
