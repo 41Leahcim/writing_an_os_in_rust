@@ -18,6 +18,11 @@ test-timeout = 300 # seconds
 name = "should_panic"
 harness = false
 
+# Turn off the stack harnass as execution can't continue after a double fault caused by this test
+[[test]]
+name = "stack_overflow"
+harness = false
+
 [dependencies]
 bootloader = "0.9"
 volatile = "0.3"

@@ -1,13 +1,19 @@
 use lazy_static::lazy_static;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
-use crate::println;
+use crate::{gdt, println};
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint_handler);
-        idt.double_fault.set_handler_fn(double_fault_handler);
+        // Use unsafe as the index shouldn't be used for another exception
+        unsafe {
+            // Set the double fault handler on its own piece of the stack
+            idt.double_fault
+                .set_handler_fn(double_fault_handler)
+                .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
+        }
         idt
     };
 }
@@ -20,6 +26,8 @@ extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
 }
 
+// This handler never returns, as a double fault can't be resolved on x86_64.
+// It can only be stopped from causing a triple fault which would reset CPU
 extern "x86-interrupt" fn double_fault_handler(
     stack_frame: InterruptStackFrame,
     _error_code: u64,

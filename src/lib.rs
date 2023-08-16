@@ -6,6 +6,7 @@
 
 #[macro_use]
 pub mod vga_buffer;
+pub mod gdt; // Global Descriptor table
 pub mod interrupts;
 pub mod serial;
 
@@ -93,6 +94,7 @@ fn trivial_assertion() {
 
 pub fn init() {
     interrupts::init_idt();
+    gdt::init();
 }
 
 #[cfg(test)]
