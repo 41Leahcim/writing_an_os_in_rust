@@ -6,13 +6,12 @@
 
 use core::panic::PanicInfo;
 
-use blog_os::{print, println};
+use blog_os::{hlt_loop, print, println};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     test_main();
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }
 
 #[panic_handler]

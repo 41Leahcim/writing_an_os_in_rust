@@ -1,8 +1,8 @@
-use uart_16550::SerialPort;
-use spin::Mutex;
 use lazy_static::lazy_static;
+use spin::Mutex;
+use uart_16550::SerialPort;
 
-lazy_static!{
+lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
         // create, and initialize a new default port, return it inside a mutex
         let mut serial_port = unsafe { SerialPort::new(0x3F8) };
@@ -12,20 +12,27 @@ lazy_static!{
 }
 
 /// Sends formatted text over the uart
-/// 
+///
 /// # Arguments
 /// ```args```: the arguments to parse and send
-/// 
+///
 /// # Panics
 /// If the serial interface can't be written to
 #[doc(hidden)]
-pub fn _print(args: core::fmt::Arguments){
+pub fn _print(args: core::fmt::Arguments) {
     // enable Write functionality
     use core::fmt::Write;
+    use x86_64::instructions::interrupts;
 
-    // wait for access to the serial port, write the message over the serial interface
-    // exit with a message if it fails
-    SERIAL1.lock().write_fmt(args).expect("Printing to serial failed");
+    // wait for access to the serial port, write the message over the serial interface.
+    // Exit with an error message if it fails.
+    // Run without interrupts to prevent deadlocks
+    interrupts::without_interrupts(|| {
+        SERIAL1
+            .lock()
+            .write_fmt(args)
+            .expect("Printing to serial failed")
+    });
 }
 
 /// Prints to the host through the serial interface

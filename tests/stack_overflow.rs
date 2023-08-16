@@ -4,7 +4,7 @@
 
 use core::panic::PanicInfo;
 
-use blog_os::{exit_qemu, serial_print, serial_println, QemuExitCode};
+use blog_os::{exit_qemu, hlt_loop, serial_print, serial_println, QemuExitCode};
 use lazy_static::lazy_static;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
@@ -36,8 +36,7 @@ extern "x86-interrupt" fn test_double_fault_handler(
 ) -> ! {
     serial_println!("[ok]");
     exit_qemu(QemuExitCode::Success);
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }
 
 #[no_mangle]

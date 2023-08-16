@@ -82,8 +82,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]");
     serial_println!("Error: {}\n", info);
     exit_qemu(QemuExitCode::Failed);
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }
 
 #[test_case]
@@ -95,6 +94,21 @@ fn trivial_assertion() {
 pub fn init() {
     interrupts::init_idt();
     gdt::init();
+
+    // Initialize the PICs.
+    // Unsafe as it can cause undefined behavior if the PIC is misconfigured
+    unsafe { interrupts::PICS.lock().initialize() };
+
+    // Enable interrupts on the CPU
+    x86_64::instructions::interrupts::enable();
+}
+
+/// Blocks for ever, while still allowing interrupts.
+/// Uses less energy than `loop{}`, with the same functionality.
+pub fn hlt_loop() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 #[cfg(test)]
@@ -102,6 +116,5 @@ pub fn init() {
 pub extern "C" fn _start() -> ! {
     init();
     test_main();
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }

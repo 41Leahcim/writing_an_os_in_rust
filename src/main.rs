@@ -6,7 +6,7 @@
 
 use core::panic::PanicInfo;
 
-use blog_os::{print, println};
+use blog_os::{hlt_loop, print, println};
 
 /// This function is called on panic, only run whe not testing
 ///
@@ -19,7 +19,7 @@ use blog_os::{print, println};
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
-    loop {}
+    hlt_loop();
 }
 
 /// This function is called on panic, only run whe not testing
@@ -53,6 +53,5 @@ pub extern "C" fn _start() -> ! {
 
     println!("It did not crash!");
 
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }

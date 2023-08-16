@@ -1,14 +1,14 @@
 use core::fmt;
 
-use volatile::Volatile;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use volatile::Volatile;
 
 /// Represents the color options for the vga buffer
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum Color{
+pub enum Color {
     Black = 0,
     Blue = 1,
     Green = 2,
@@ -24,23 +24,23 @@ pub enum Color{
     LightRed = 12,
     Pink = 13,
     Yellow = 14,
-    White = 15
+    White = 15,
 }
 
 /// Represents the full color byte of a character, foreground (4-bit), background (3-bit)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ColorCode(u8);
 
-impl ColorCode{
+impl ColorCode {
     /// Creates a color code
-    /// 
+    ///
     /// # Arguments
     /// ```foreground```: the foreground color
     /// ```background```: the background color + blink flag (most significant bit)
-    /// 
+    ///
     /// # Returns
     /// A color code
-    fn new(foreground: Color, background: Color) -> ColorCode{
+    fn new(foreground: Color, background: Color) -> ColorCode {
         Self((background as u8) << 4 | foreground as u8)
     }
 }
@@ -48,29 +48,29 @@ impl ColorCode{
 /// Represents a full VGA character
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
-struct ScreenChar{
+struct ScreenChar {
     ascii_character: u8,
-    color_code: ColorCode
+    color_code: ColorCode,
 }
 
 /// The dimensions of the VGA buffer
 const BUFFER_HEIGHT: usize = 25;
-const BUFFER_WIDTH : usize = 80;
+const BUFFER_WIDTH: usize = 80;
 
 /// The VGA buffer
 #[repr(transparent)]
-struct Buffer{
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT]
+struct Buffer {
+    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 /// Writes text to the VGA buffer
-pub struct Writer{
+pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
-    buffer: &'static mut Buffer
+    buffer: &'static mut Buffer,
 }
 
-impl fmt::Write for Writer{
+impl fmt::Write for Writer {
     /// Writes formatted string to the screen
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_string(s);
@@ -78,23 +78,23 @@ impl fmt::Write for Writer{
     }
 }
 
-impl Writer{
+impl Writer {
     /// Writes a single character to the screen
-    /// 
+    ///
     /// # Arguments
     /// ```byte```: The byte to write to the screen
-    pub fn write_byte(&mut self, byte: u8){
-        match byte{
+    pub fn write_byte(&mut self, byte: u8) {
+        match byte {
             // move to a new line, if a new line character is printed
             b'\n' => self.new_line(),
 
             // else, print the character to the screen
             byte => {
                 // if we're at the end of the current line, first go to a new line
-                if self.column_position >= BUFFER_WIDTH{
+                if self.column_position >= BUFFER_WIDTH {
                     self.new_line();
                 }
-                
+
                 // set the current row to the last row, and the current column to the column position
                 let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
@@ -103,9 +103,9 @@ impl Writer{
                 let color_code = self.color_code;
 
                 // create the character, and write it to the screen
-                self.buffer.chars[row][col].write(ScreenChar{
+                self.buffer.chars[row][col].write(ScreenChar {
                     ascii_character: byte,
-                    color_code
+                    color_code,
                 });
 
                 // move to the next column position
@@ -115,10 +115,10 @@ impl Writer{
     }
 
     /// Moves the cursor to the next line
-    fn new_line(&mut self){
+    fn new_line(&mut self) {
         // shift every character 1 line up, replacing the first row
-        for row in 1..BUFFER_HEIGHT{
-            for col in 0..BUFFER_WIDTH{
+        for row in 1..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.chars[row][col].read();
                 self.buffer.chars[row - 1][col].write(character);
             }
@@ -130,45 +130,45 @@ impl Writer{
     }
 
     /// Clears a row on the screen
-    /// 
+    ///
     /// # Arguments
     /// ```row```: the row index to clear
-    fn clear_row(&mut self, row: usize){
+    fn clear_row(&mut self, row: usize) {
         // create the blank character, to fill the row with
-        let blank = ScreenChar{
+        let blank = ScreenChar {
             ascii_character: b' ',
-            color_code: self.color_code
+            color_code: self.color_code,
         };
 
         // fill the row with the blank character
-        for col in 0..BUFFER_WIDTH{
+        for col in 0..BUFFER_WIDTH {
             self.buffer.chars[row][col].write(blank);
         }
     }
 
     /// Writes a string to the screen
-    /// 
+    ///
     /// # Arguments
     /// ```s```: the string to write to the screen
-    pub fn write_string(&mut self, s: &str){
+    pub fn write_string(&mut self, s: &str) {
         // iterate through the bytes in the string
-        for byte in s.bytes(){
-            match byte{
+        for byte in s.bytes() {
+            match byte {
                 // printable character
                 0x20..=0x7e | b'\n' => self.write_byte(byte),
                 // not part of printable ASCII range
-                _ => self.write_byte(0xfe)
+                _ => self.write_byte(0xfe),
             }
         }
     }
 }
 
 // create a writer accessible from any module using this module
-lazy_static!{
-    pub static ref WRITER:Mutex<Writer> = Mutex::new(Writer{
+lazy_static! {
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
         color_code: ColorCode::new(Color::Yellow, Color::Black),
-        buffer: unsafe{ &mut *(0xb8000 as *mut Buffer) }
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) }
     });
 }
 
@@ -187,32 +187,43 @@ macro_rules! println {
 
 // print formatted text to the screen
 #[doc(hidden)]
-pub fn _print(args: fmt::Arguments){
+pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    use x86_64::instructions::interrupts;
+
+    // Run the following code without interrupts to prevent deadlocks
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    });
 }
 
 /// test whether println panics
 #[test_case]
-fn test_println_simple(){
+fn test_println_simple() {
     println!("test_println_simple output");
 }
 
 ///test whether printing many lines fails
 #[test_case]
-fn test_println_many(){
-    for _ in 0..1000{
+fn test_println_many() {
+    for _ in 0..1000 {
         println!("test_println_many output");
     }
 }
 
 /// tests whether characters are really written to the vga buffer
 #[test_case]
-fn test_println_output(){
+fn test_println_output() {
+    use core::fmt::Write;
+    use x86_64::instructions::interrupts;
     let s = "Some test string that fits on a single line";
-    println!("{}", s);
-    for (i, c) in s.chars().enumerate(){
-        let screen_char = WRITER.lock().buffer.chars[BUFFER_HEIGHT - 2][i].read();
-        assert_eq!(char::from(screen_char.ascii_character), c);
-    }
+    // Disable interrupts to prevent deadlocks
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        writeln!(writer, "\n{}", s).expect("Writeln failed");
+        for (i, c) in s.chars().enumerate() {
+            let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
+            assert_eq!(char::from(screen_char.ascii_character), c);
+        }
+    });
 }
