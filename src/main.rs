@@ -45,8 +45,23 @@ pub extern "C" fn _start() -> ! {
 
     blog_os::init();
 
-    // invoke a breakpoint exception
-    x86_64::instructions::interrupts::int3();
+    use x86_64::registers::control::Cr3;
+
+    // Read Cr3, store the level 4 page table, but ignore the Cr3Flags
+    let (level_4_page_table, _) = Cr3::read();
+    println!(
+        "Level 4 page table at: {:?}",
+        level_4_page_table.start_address()
+    );
+
+    let ptr = 0x2031b2 as *mut u8;
+
+    unsafe {
+        println!("Read worked: {}", *ptr);
+    }
+
+    unsafe { *ptr = 42 };
+    println!("Write worked");
 
     #[cfg(test)]
     test_main();
