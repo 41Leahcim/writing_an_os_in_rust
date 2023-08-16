@@ -9,17 +9,18 @@ use core::panic::PanicInfo;
 use blog_os::{print, println};
 
 #[no_mangle]
-pub extern "C" fn _start() -> !{
+pub extern "C" fn _start() -> ! {
     test_main();
-    loop{}
+    #[allow(clippy::empty_loop)]
+    loop {}
 }
 
 #[panic_handler]
-fn panic(info: &PanicInfo) -> !{
+fn panic(info: &PanicInfo) -> ! {
     blog_os::test_panic_handler(info);
 }
 
 #[test_case]
-fn test_println(){
+fn test_println() {
     println!("test_println output");
 }
