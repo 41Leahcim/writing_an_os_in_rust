@@ -17,6 +17,7 @@ pub static PICS: spin::Mutex<ChainedPics> =
 #[repr(u8)]
 pub enum InterruptIndex {
     Timer = PIC_1_OFFSET,
+    Keyboard,
 }
 
 impl InterruptIndex {
@@ -41,10 +42,14 @@ lazy_static! {
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
 
-        // Add an interrupt for the timer.
+        // Set an interrupt for the timer.
         // Removing this interrupt while the interrupts are enabled, will result in a double fault.
         idt[InterruptIndex::Timer.as_usize()]
             .set_handler_fn(timer_interrupt_handler);
+
+        // Set an interrupt for the keyboard
+        idt[InterruptIndex::Keyboard.as_usize()]
+            .set_handler_fn(keyboard_interrupt_handler);
         idt
     };
 }
@@ -75,6 +80,48 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
+    }
+}
+
+extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
+    use spin::Mutex;
+    use x86_64::instructions::port::Port;
+
+    // Create a mutex reference to the keyboard
+    lazy_static! {
+        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(
+            Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore)
+        );
+    }
+
+    // Create a port with code 0x60 (6 * 16 = 3 * 32 = 96)
+    let mut port = Port::new(0x60);
+
+    // Read the scancode
+    let scancode: u8 = unsafe { port.read() };
+
+    // Lock the keyboard
+    let mut keyboard = KEYBOARD.lock();
+
+    // Add the received byte to the current key event
+    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
+        // Process the key
+        if let Some(key) = keyboard.process_keyevent(key_event) {
+            // Print the character if the keyevent is unicode, otherwise print the raw key code
+            match key {
+                DecodedKey::Unicode(character) => print!("{character}"),
+                DecodedKey::RawKey(key) => print!("{key:?}"),
+            }
+        }
+    }
+
+    // Notify the PIC that a interrupt has been handled, to receive the next interrupt.
+    // Unsafe as sending the wrong interrupt vector number, could delete an important unsent
+    // interrupt or cause the system to hang.
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }
 }
 
