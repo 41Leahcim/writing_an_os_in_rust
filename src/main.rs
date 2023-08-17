@@ -6,12 +6,13 @@
 
 use core::panic::PanicInfo;
 
-use blog_os::{hlt_loop, memory, print, println};
-use bootloader::{entry_point, BootInfo};
-use x86_64::{
-    structures::paging::{Page, Translate},
-    VirtAddr,
+use blog_os::{
+    hlt_loop,
+    memory::{self, BootInfoFrameAllocator},
+    print, println,
 };
+use bootloader::{entry_point, BootInfo};
+use x86_64::{structures::paging::Page, VirtAddr};
 
 /// This function is called on panic, only run whe not testing
 ///
@@ -55,19 +56,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let physical_memory_offset = VirtAddr::new(boot_info.physical_memory_offset);
 
     let mut mapper = unsafe { memory::init(physical_memory_offset) };
-    let mut frame_allocator = memory::EmptyFrameAllocator;
-
-    // Store some virtual addresses as u64s
-    let addresses = [
-        // The identity-mapped vga buffer page
-        0xb8000,
-        // Some code page
-        0x201008,
-        // Some stack page
-        0x0100_0020_1a10,
-        // virtual address mapped to physical address 0
-        boot_info.physical_memory_offset,
-    ];
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
     // Map an unused page
     let page = Page::containing_address(VirtAddr::new(0));
@@ -76,12 +65,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // Write the string `New!` to the screen through the new mapping
     let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
     unsafe { page_ptr.offset(400).write_volatile(0xf021_f077_f065_f04e) };
-
-    for &address in &addresses {
-        let virtual_address = VirtAddr::new(address);
-        let physical_address = mapper.translate_addr(virtual_address);
-        println!("{virtual_address:?} -> {physical_address:?}");
-    }
 
     #[cfg(test)]
     test_main();
