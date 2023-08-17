@@ -6,9 +6,12 @@
 
 use core::panic::PanicInfo;
 
-use blog_os::{hlt_loop, memory::translate_address, print, println};
+use blog_os::{hlt_loop, memory, print, println};
 use bootloader::{entry_point, BootInfo};
-use x86_64::{structures::paging::PageTable, VirtAddr};
+use x86_64::{
+    structures::paging::{Page, Translate},
+    VirtAddr,
+};
 
 /// This function is called on panic, only run whe not testing
 ///
@@ -37,30 +40,6 @@ fn panic(info: &PanicInfo) -> ! {
     blog_os::test_panic_handler(info);
 }
 
-fn table_printer(page_table: &PageTable, layer: usize, physical_memory_offset: VirtAddr) {
-    if !(1..=4).contains(&layer) {
-        return;
-    }
-
-    for (i, entry) in page_table
-        .iter()
-        .enumerate()
-        .filter(|(_, entry)| !entry.is_unused())
-    {
-        // Print the entry
-        println!("L{layer} Entry {i}: {entry:?}");
-
-        if layer > 1 {
-            // Get the physical address from the entry and convert it
-            let physical_address = entry.frame().unwrap().start_address();
-            let virtual_address = physical_address.as_u64() + physical_memory_offset.as_u64();
-            let ptr = VirtAddr::new(virtual_address).as_mut_ptr();
-            let next_layer_table: &PageTable = unsafe { &*ptr };
-            table_printer(next_layer_table, layer - 1, physical_memory_offset);
-        }
-    }
-}
-
 entry_point!(kernel_main);
 
 /// The function where the kernel starts
@@ -68,18 +47,15 @@ entry_point!(kernel_main);
 /// # Returns
 /// Never
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    use blog_os::memory::active_level_4_table;
-
     println!("Hello, World{}", "!");
 
     blog_os::init();
 
     // Get the physical memory offset and retrieve the l4 table
     let physical_memory_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let l4_table = unsafe { active_level_4_table(physical_memory_offset) };
 
-    // Iterate through the l4 table
-    table_printer(l4_table, 1, physical_memory_offset);
+    let mut mapper = unsafe { memory::init(physical_memory_offset) };
+    let mut frame_allocator = memory::EmptyFrameAllocator;
 
     // Store some virtual addresses as u64s
     let addresses = [
@@ -93,10 +69,17 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         boot_info.physical_memory_offset,
     ];
 
+    // Map an unused page
+    let page = Page::containing_address(VirtAddr::new(0));
+    memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
+
+    // Write the string `New!` to the screen through the new mapping
+    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
+    unsafe { page_ptr.offset(400).write_volatile(0xf021_f077_f065_f04e) };
+
     for &address in &addresses {
         let virtual_address = VirtAddr::new(address);
-        let physical_address =
-            unsafe { translate_address(virtual_address, physical_memory_offset) };
+        let physical_address = mapper.translate_addr(virtual_address);
         println!("{virtual_address:?} -> {physical_address:?}");
     }
 
