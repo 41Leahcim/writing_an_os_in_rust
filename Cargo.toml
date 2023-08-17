@@ -24,7 +24,8 @@ name = "stack_overflow"
 harness = false
 
 [dependencies]
-bootloader = "0.9"
+# The map_physical_memory feature gives access to all physical memory
+bootloader = { version = "0.9", features = ["map_physical_memory"] }
 volatile = "0.3"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 spin = "0.9"
