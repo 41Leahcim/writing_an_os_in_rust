@@ -8,9 +8,9 @@ extern crate alloc;
 
 use core::panic::PanicInfo;
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use blog_os::{
-    hlt_loop,
+    allocator, hlt_loop,
     memory::{self, BootInfoFrameAllocator},
     print, println,
 };
@@ -58,15 +58,32 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // Get the physical memory offset and retrieve the l4 table
     let physical_memory_offset = VirtAddr::new(boot_info.physical_memory_offset);
 
-    let mut _mapper = unsafe { memory::init(physical_memory_offset) };
-    let mut _frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    let mut mapper = unsafe { memory::init(physical_memory_offset) };
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
-    let x = Box::new(41);
+    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("Heap initialization failed");
+
+    let heap_value = Box::new(41);
+    println!("heap_value at {heap_value:p}");
+
+    // Create a dynamically sized vector
+    println!("Vec at {:p}", (0..500).collect::<Vec<_>>().as_slice());
+
+    // Create a reference counted vector -> will be freed when count reaches 0
+    let reference_counted = Rc::new(vec![1, 2, 3]);
+    let cloned_reference = reference_counted.clone();
+    println!(
+        "Current reference count is {}",
+        Rc::strong_count(&cloned_reference)
+    );
+    core::mem::drop(reference_counted);
+    println!(
+        "Current reference count is {} now",
+        Rc::strong_count(&cloned_reference)
+    );
 
     #[cfg(test)]
     test_main();
-
-    println!("{x}");
 
     println!("It did not crash!");
     hlt_loop();
