@@ -6,10 +6,13 @@
 
 #[macro_use]
 pub mod vga_buffer;
+pub mod allocator;
 pub mod gdt; // Global Descriptor table
 pub mod interrupts;
 pub mod memory;
 pub mod serial;
+
+extern crate alloc;
 
 use core::panic::PanicInfo;
 
