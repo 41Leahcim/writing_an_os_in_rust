@@ -5,11 +5,29 @@ use x86_64::{
     VirtAddr,
 };
 
-use linked_list_allocator::LockedHeap;
+use bump::BumpAllocator;
 
-// Create a new memory allocator
+pub mod bump;
+
+/// A wrapper around spin::Mutex to permit trait implementations
+pub struct Locked<A> {
+    inner: spin::Mutex<A>,
+}
+
+impl<A> Locked<A> {
+    pub const fn new(inner: A) -> Self {
+        Locked {
+            inner: spin::Mutex::new(inner),
+        }
+    }
+
+    pub fn lock(&self) -> spin::MutexGuard<A> {
+        self.inner.lock()
+    }
+}
+
 #[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
+pub static mut ALLOCATOR: Locked<BumpAllocator> = Locked::new(BumpAllocator::new());
 
 // The start address and size of the heap, can be changed if needed
 pub const HEAP_START: usize = 0x_4444_4444_0000;

@@ -4,7 +4,7 @@
 #![test_runner(blog_os::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use core::panic::PanicInfo;
+use core::{hint::black_box, panic::PanicInfo};
 
 use alloc::{boxed::Box, vec::Vec};
 use blog_os::{
@@ -76,4 +76,22 @@ fn many_boxes() {
         // Make sure the value is stored and can be read correctly
         assert_eq!(*x, i);
     }
+}
+
+/// Checks whether memory is reused when any piece of memory isn't freed
+#[test_case]
+fn many_boxes_long_lived() {
+    // Create a box that will only be freed at the end of the function
+    // Black_box it to prevent the compiler from removing the box
+    let long_lived = black_box(Box::new(1));
+
+    // Create as many extra boxes as there is heap memory
+    for i in 0..HEAP_SIZE {
+        // Black_box it to prevent the compiler form removing the box
+        let x = black_box(Box::new(i));
+        assert_eq!(*x, i);
+    }
+
+    // Check whether the long lived box is still available
+    assert_eq!(*long_lived, 1);
 }
