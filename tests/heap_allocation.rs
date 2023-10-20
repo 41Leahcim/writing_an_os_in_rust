@@ -9,10 +9,11 @@ use core::{hint::black_box, panic::PanicInfo};
 use alloc::{boxed::Box, vec::Vec};
 use blog_os::{
     allocator::{self, HEAP_SIZE},
+    hlt_loop,
     memory::{self, BootInfoFrameAllocator},
 };
 use bootloader::{entry_point, BootInfo};
-use x86_64::{instructions::hlt, VirtAddr};
+use x86_64::VirtAddr;
 
 extern crate alloc;
 
@@ -31,9 +32,7 @@ fn main(boot_info: &'static BootInfo) -> ! {
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("Heap initialization failed");
 
     test_main();
-    loop {
-        hlt()
-    }
+    hlt_loop();
 }
 
 /// Checks whether values can be stored on and read from the heap correctly

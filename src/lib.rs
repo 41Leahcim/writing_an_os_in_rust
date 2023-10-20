@@ -11,6 +11,7 @@ pub mod gdt; // Global Descriptor table
 pub mod interrupts;
 pub mod memory;
 pub mod serial;
+pub mod task;
 
 extern crate alloc;
 
