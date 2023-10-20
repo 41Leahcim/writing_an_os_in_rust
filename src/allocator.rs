@@ -5,9 +5,11 @@ use x86_64::{
     VirtAddr,
 };
 
-use bump::BumpAllocator;
+use self::fixed_size_block::FixedSizeBlockAllocator;
 
 pub mod bump;
+pub mod fixed_size_block;
+pub mod linked_list;
 
 /// A wrapper around spin::Mutex to permit trait implementations
 pub struct Locked<A> {
@@ -27,7 +29,8 @@ impl<A> Locked<A> {
 }
 
 #[global_allocator]
-pub static mut ALLOCATOR: Locked<BumpAllocator> = Locked::new(BumpAllocator::new());
+pub static mut ALLOCATOR: Locked<FixedSizeBlockAllocator> =
+    Locked::new(FixedSizeBlockAllocator::new());
 
 // The start address and size of the heap, can be changed if needed
 pub const HEAP_START: usize = 0x_4444_4444_0000;
