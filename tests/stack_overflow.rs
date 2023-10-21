@@ -55,5 +55,8 @@ pub extern "C" fn _start() -> ! {
 #[allow(unconditional_recursion)]
 fn stack_overflow() {
     stack_overflow(); // for each recursion, the return address is pushed
-    volatile::Volatile::new(0).read(); // Prevent tail recursion optimization
+                      // Prevent tail recursion optimization
+    let mut a = 0;
+    let a_ref = volatile::VolatileRef::from_mut_ref(&mut a);
+    a_ref.write_only().as_mut_ptr().write(1);
 }

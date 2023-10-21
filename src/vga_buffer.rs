@@ -2,7 +2,6 @@ use core::fmt;
 
 use lazy_static::lazy_static;
 use spin::Mutex;
-use volatile::Volatile;
 
 /// Represents the color options for the vga buffer
 #[allow(dead_code)]
@@ -60,7 +59,7 @@ const BUFFER_WIDTH: usize = 80;
 /// The VGA buffer
 #[repr(transparent)]
 struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
+    chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 /// Writes text to the VGA buffer
@@ -103,10 +102,10 @@ impl Writer {
                 let color_code = self.color_code;
 
                 // create the character, and write it to the screen
-                self.buffer.chars[row][col].write(ScreenChar {
+                self.buffer.chars[row][col] = ScreenChar {
                     ascii_character: byte,
                     color_code,
-                });
+                };
 
                 // move to the next column position
                 self.column_position += 1;
@@ -119,8 +118,8 @@ impl Writer {
         // shift every character 1 line up, replacing the first row
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
+                let character = self.buffer.chars[row][col];
+                self.buffer.chars[row - 1][col] = character;
             }
         }
 
@@ -142,7 +141,7 @@ impl Writer {
 
         // fill the row with the blank character
         for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
+            self.buffer.chars[row][col] = blank;
         }
     }
 
@@ -222,7 +221,7 @@ fn test_println_output() {
         let mut writer = WRITER.lock();
         writeln!(writer, "\n{}", s).expect("Writeln failed");
         for (i, c) in s.chars().enumerate() {
-            let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
+            let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i];
             assert_eq!(char::from(screen_char.ascii_character), c);
         }
     });
