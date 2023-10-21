@@ -8,11 +8,14 @@ extern crate alloc;
 
 use core::panic::PanicInfo;
 
+#[cfg(not(test))]
+use blog_os::hlt_loop;
+
 use blog_os::{
-    allocator, hlt_loop,
+    allocator,
     memory::{self, BootInfoFrameAllocator},
     print, println,
-    task::{keyboard, simple_executor::SimpleExecutor, Task},
+    task::{executor::Executor, keyboard, Task},
 };
 use bootloader::{entry_point, BootInfo};
 use x86_64::VirtAddr;
@@ -72,14 +75,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("Heap initialization failed");
 
-    let mut executor = SimpleExecutor::new();
+    let mut executor = Executor::new();
     executor.spawn(Task::new(example_task()));
     executor.spawn(Task::new(keyboard::print_keypresses()));
     executor.run();
-
-    #[cfg(test)]
-    test_main();
-
-    println!("It did not crash!");
-    hlt_loop();
 }
